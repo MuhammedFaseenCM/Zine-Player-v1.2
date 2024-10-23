@@ -4,7 +4,7 @@ import 'package:zine_player/components/video_list_item.dart';
 import 'package:zine_player/model/playlist.dart';
 import 'package:zine_player/view/playlist/playlist_controller.dart';
 
-class PlaylistDetailScreen extends StatelessWidget {
+class PlaylistDetailScreen extends GetView<PlaylistController> {
   final Playlist playlist;
 
   const PlaylistDetailScreen({super.key, required this.playlist});
@@ -19,7 +19,7 @@ class PlaylistDetailScreen extends StatelessWidget {
       ),
       body: GetBuilder<PlaylistController>(
         id: 'playlist_${playlist.id}',
-        builder: (controller) {
+        builder: (_) {
           final videos = controller.getVideosInPlaylist(playlist);
           if (videos.isEmpty) {
             return const Center(
@@ -38,7 +38,7 @@ class PlaylistDetailScreen extends StatelessWidget {
                 onFavoriteToggle: (v) => controller.toggleFavorite(v, playlist),
                 onAddToPlaylist: (_) {}, // Not needed in playlist detail
                 showFavoriteButton: true,
-                showAddToPlaylistButton: false, onTap: (Video ) {  },
+                showAddToPlaylistButton: false, onTap: (_ ) {  },
               );
             },
           );

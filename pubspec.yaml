@@ -15,11 +15,21 @@ dependencies:
   video_player: ^2.6.1
   shared_preferences: ^2.3.2
   uuid: ^4.5.1
+  webview_flutter: ^4.10.0
 
 dev_dependencies:
+  flutter_launcher_icons: 0.13.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+
+flutter_icons:
+  android: true  # Enable for Android
+  ios: true      # Enable for iOS
+  image_path: "assets/launcher.png"
+
+assets:
+  - assets/launcher.png

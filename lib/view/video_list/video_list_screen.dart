@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:zine_player/components/add_to_playlist_dialog.dart';
 import 'package:zine_player/components/video_list_item.dart';
-import 'package:zine_player/routes/routes_name.dart';
 import 'package:zine_player/utils/strings.dart';
+import 'package:zine_player/view/settings/settigs_drawer.dart';
 import 'package:zine_player/view/video_list/video_list_controller.dart';
 
 class VideoListScreen extends GetView<VideoController> {
@@ -12,21 +12,12 @@ class VideoListScreen extends GetView<VideoController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const SettingsDrawer(),
       appBar: AppBar(
         title: Text(
           AppStrings.videoLibrary,
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
-        actions: [
-          IconButton(
-            onPressed: () => Get.toNamed(ZPRouteNames.favorite),
-            icon: const Icon(Icons.favorite),
-          ),
-          IconButton(
-            icon: const Icon(Icons.playlist_play),
-            onPressed: () => Get.toNamed(ZPRouteNames.playlist),
-          ),
-        ],
       ),
       body: Obx(() {
         if (!controller.hasPermission.value) {

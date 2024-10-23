@@ -4,6 +4,7 @@ import 'package:zine_player/components/add_to_playlist_dialog.dart';
 import 'package:zine_player/components/video_list_item.dart';
 import 'package:zine_player/utils/strings.dart';
 import 'package:zine_player/view/favorite_video_list/favorite_videos_controller.dart';
+import 'package:zine_player/view/settings/settigs_drawer.dart';
 
 class FavoriteVideosScreen extends GetView<FavoriteVideosController> {
   const FavoriteVideosScreen({super.key});
@@ -11,6 +12,7 @@ class FavoriteVideosScreen extends GetView<FavoriteVideosController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const SettingsDrawer(),
       appBar: AppBar(
         title: const Text(AppStrings.favoriteVideos),
         backgroundColor: Colors.deepPurple,
@@ -32,9 +34,11 @@ class FavoriteVideosScreen extends GetView<FavoriteVideosController> {
             return VideoListItem(
               video: video,
               onFavoriteToggle: controller.toggleFavorite,
-              onAddToPlaylist: (video) => Get.dialog(AddToPlaylistDialog(video: video)),
+              onAddToPlaylist: (video) =>
+                  Get.dialog(AddToPlaylistDialog(video: video)),
               showFavoriteButton: true,
-              showAddToPlaylistButton: true, onTap: (Video ) {  },
+              showAddToPlaylistButton: true,
+              onTap: (Video) {},
             );
           },
         );
