@@ -1,0 +1,3 @@
+class VideoFolderController extends GetxController {
+  
+}

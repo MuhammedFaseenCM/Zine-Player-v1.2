@@ -18,6 +18,7 @@ class MainApp extends StatelessWidget {
     return GetMaterialApp(
       title: AppStrings.appName,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       initialBinding: HomeBinding(),
       initialRoute: ZPRouteNames.home,
       getPages: ZPRoutes.routes,
