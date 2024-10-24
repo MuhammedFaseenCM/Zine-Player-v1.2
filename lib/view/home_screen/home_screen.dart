@@ -26,6 +26,8 @@ class HomeScreen extends GetView<HomeController> {
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
               BottomNavigationBarItem(
+                  icon: Icon(Icons.folder), label: 'Folders'),
+              BottomNavigationBarItem(
                   icon: Icon(Icons.history), label: 'Recent'),
               BottomNavigationBarItem(
                   icon: Icon(Icons.favorite), label: 'Favorite'),

@@ -11,6 +11,8 @@ class Video {
   bool isFavorite;
   DateTime? lastPlayed;
   Duration lastPosition;
+  final String folderPath;
+  final String folderName;
 
   Video({
     required this.id,
@@ -19,6 +21,8 @@ class Video {
     required this.duration,
     required this.size,
     required this.mimeType,
+    required this.folderPath,
+    required this.folderName,
     this.thumbnail,
     this.isFavorite = false,
     this.lastPlayed,
@@ -27,13 +31,15 @@ class Video {
 
   factory Video.fromMap(Map<Object?, Object?> map) {
     return Video(
-      id: map['id'] as String,
-      name: map['name'] as String,
-      uri: map['uri'] as String,
-      duration: map['duration'] as int,
-      size: map['size'] as int,
-      mimeType: map['mimeType'] as String,
-      thumbnail: map['thumbnail'] as Uint8List?,
+      id: map['id'].toString(),
+      name: map['name'].toString(),
+      uri: map['uri'].toString(),
+      duration: (map['duration'] as num).toInt(),
+      size: (map['size'] as num).toInt(),
+      mimeType: map['mimeType'].toString(),
+      folderPath: map['folderPath']?.toString() ?? '',
+      folderName: map['folderName']?.toString() ?? '',
+      thumbnail: map['thumbnail'] is List ? Uint8List.fromList(List<int>.from(map['thumbnail'] as List)) : null,
       isFavorite: map['isFavorite'] as bool? ?? false,
       lastPlayed: map['lastPlayed'] != null
           ? DateTime.parse(map['lastPlayed'] as String)
@@ -50,7 +56,9 @@ class Video {
       'duration': duration,
       'size': size,
       'mimeType': mimeType,
-      'thumbnail': thumbnail,
+      'folderPath': folderPath,
+      'folderName': folderName,
+      'thumbnail': thumbnail?.toList(),
       'isFavorite': isFavorite,
       'lastPlayed': lastPlayed?.toIso8601String(),
       'lastPosition': lastPosition.inMilliseconds,

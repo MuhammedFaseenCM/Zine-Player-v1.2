@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:zine_player/view/favorite_video_list/favorite_videos_screen.dart';
 import 'package:zine_player/view/playlist/playlist_screen.dart';
 import 'package:zine_player/view/recently_played/recently_played_screen.dart';
+import 'package:zine_player/view/video_folders/video_folders_screen.dart';
 import 'package:zine_player/view/video_list/video_list_screen.dart';
 
 class HomeController extends GetxController {
@@ -15,6 +16,7 @@ class HomeController extends GetxController {
 
   List<Widget> pages = [
     const VideoListScreen(),
+    const FolderScreen(),
     const RecentlyPlayedScreen(),
     const FavoriteVideosScreen(),
     const PlaylistScreen(),

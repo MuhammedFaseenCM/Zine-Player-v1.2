@@ -43,7 +43,10 @@ class MainActivity: FlutterActivity() {
             MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.DURATION,
             MediaStore.Video.Media.SIZE,
-            MediaStore.Video.Media.MIME_TYPE
+            MediaStore.Video.Media.MIME_TYPE,
+            MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
+            MediaStore.Video.Media.BUCKET_ID,
+            MediaStore.Video.Media.DATA 
         )
         val selection = "${MediaStore.Video.Media.DURATION} >= ?"
         val selectionArgs = arrayOf(
@@ -65,6 +68,8 @@ class MainActivity: FlutterActivity() {
             val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
             val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val mimeTypeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE)
+            val bucketNameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+            val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idColumn)
@@ -72,6 +77,10 @@ class MainActivity: FlutterActivity() {
                 val duration = cursor.getLong(durationColumn)
                 val size = cursor.getLong(sizeColumn)
                 val mimeType = cursor.getString(mimeTypeColumn)
+                val folderName = cursor.getString(bucketNameColumn)
+                val fullPath = cursor.getString(dataColumn)
+                val folderPath = fullPath.substring(0, fullPath.lastIndexOf("/"))
+            
                 val contentUri = ContentUris.withAppendedId(
                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                     id
@@ -83,7 +92,9 @@ class MainActivity: FlutterActivity() {
                     "uri" to contentUri.toString(),
                     "duration" to duration,
                     "size" to size,
-                    "mimeType" to mimeType
+                    "mimeType" to mimeType,
+                    "folderPath" to folderPath,
+                    "folderName" to folderName
                 )
                 thumbnail?.let { videoMap["thumbnail"] = it }
                 videos.add(videoMap)

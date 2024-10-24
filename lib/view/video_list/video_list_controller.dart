@@ -28,6 +28,7 @@ class VideoController extends GetxController {
     hasPermission.value = await requestStoragePermission();
     if (hasPermission.value) {
       await loadVideos();
+      await loadRecentlyPlayed();
     }
   }
 
@@ -111,6 +112,7 @@ class VideoController extends GetxController {
     List<FileSystemEntity> entities = await directory.list().toList();
     for (var entity in entities) {
       if (entity is File && entity.path.toLowerCase().endsWith('.mp4')) {
+        final folderPath = entity.parent.path;
         videoFiles.add(Video(
           id: entity.path,
           name: entity.path.split('/').last,
@@ -118,6 +120,8 @@ class VideoController extends GetxController {
           duration: 0,
           size: await entity.length(),
           mimeType: 'video/mp4',
+          folderPath: folderPath,
+          folderName: folderPath.split('/').last,
         ));
       } else if (entity is Directory) {
         videoFiles.addAll(await getVideosFromDirectory(entity));

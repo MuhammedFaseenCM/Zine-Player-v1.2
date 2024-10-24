@@ -6,143 +6,165 @@ import 'package:zine_player/view/video_play/video_play_controller.dart';
 class PlayScreen extends GetView<PlayScreenController> {
   const PlayScreen({super.key});
 
- @override
+  @override
   Widget build(BuildContext context) {
-    return GetBuilder<PlayScreenController>(
-      id: PlayScreenController.orientationId,
-      builder: (_) {
-        return WillPopScope(
-          onWillPop: () async => !controller.isLocked,
-          child: Scaffold(
-            backgroundColor: Colors.black,
-            body: _buildVideoPlayer(),
-          ),
-        );
-      },
+    return WillPopScope(
+      onWillPop: () async => !controller.isLocked,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: _buildVideoPlayer(context),
+        ),
+      ),
     );
   }
 
-  Widget _buildVideoPlayer() {
+  Widget _buildVideoPlayer(BuildContext context) {
     return GetBuilder<PlayScreenController>(
       id: PlayScreenController.initId,
       builder: (_) {
         if (!controller.isInitialized) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (controller.videoController.value.hasError) {
-          return Center(
-            child: Text(
-              'Error: ${controller.videoController.value.errorDescription}',
-              style: const TextStyle(color: Colors.white),
-            ),
-          );
-        }
+
         return Stack(
           children: [
+            // Video Layer
             Center(
-              child: AspectRatio(
-                aspectRatio: controller.videoController.value.aspectRatio,
-                child: VideoPlayer(controller.videoController),
+            child: AspectRatio(
+              aspectRatio: controller.videoController.value.aspectRatio,
+              child: FittedBox(
+                fit: BoxFit.fitHeight,
+                child: SizedBox(
+                  width: controller.videoController.value.size.width,
+                  height: controller.videoController.value.size.height,
+                  child: VideoPlayer(controller.videoController),
+                ),
               ),
             ),
-            GestureDetector(
-              onTap: controller.toggleControls,
-              onDoubleTap: controller.togglePlayPause,
-              onHorizontalDragEnd: (details) {
-                if (controller.isLocked) return;
-                if (details.primaryVelocity! > 0) {
-                  controller.seekBackward(10);
-                } else if (details.primaryVelocity! < 0) {
-                  controller.seekForward(10);
-                }
+          ),
+            // Gesture Layer with Controls
+            _buildGestureDetector(context),
+
+            GetBuilder<PlayScreenController>(
+              id: PlayScreenController.controlsId,
+              builder: (_) {
+                return controller.isControlsVisible || !controller.isPlaying
+                    ? Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(10.0),
+                          decoration: const BoxDecoration(
+                            color: Colors.black45,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              controller.isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 48,
+                            ),
+                            onPressed: controller.togglePlayPause,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink();
               },
-              child: Container(color: Colors.transparent),
-            ),
-            _buildControls(),
-            _buildPlayPauseButton(),
-            _buildLockButton(),
-            _buildSeekIndicator(),
+            )
           ],
         );
       },
     );
   }
 
-  Widget _buildPlayPauseButton() {
-    return GetBuilder<PlayScreenController>(
-      id: PlayScreenController.playPauseId,
-      builder: (_) {
-        return Center(
-          child: GestureDetector(
-            onTap: controller.togglePlayPause,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.black45,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                controller.isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.white,
-                size: 50,
-              ),
-            ),
-          ),
-        );
+  Widget _buildGestureDetector(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (!controller.isLocked) {
+          controller.toggleControls();
+        }
       },
+      onDoubleTap: () {
+        if (!controller.isLocked) {
+          controller.togglePlayPause();
+        }
+      },
+      onVerticalDragUpdate: (details) {
+        if (controller.isLocked) return;
+
+        final isRightSide = details.globalPosition.dx > Get.width / 2;
+        final delta = -details.delta.dy / Get.height;
+
+        if (isRightSide) {
+          controller.setVolume(controller.volume + delta);
+        } else {
+          controller.setBrightness(controller.brightness + delta);
+        }
+      },
+      onHorizontalDragUpdate: (details) {
+        if (controller.isLocked) return;
+
+        final delta = details.delta.dx;
+        final duration = controller.totalDuration.inMilliseconds.toDouble();
+        final position = controller.currentPosition.inMilliseconds.toDouble();
+        final change = (delta / Get.width) * duration;
+
+        controller.seekTo(Duration(
+          milliseconds: (position + change).clamp(0.0, duration).toInt(),
+        ));
+      },
+      child: _buildControlsOverlay(context),
     );
   }
 
-Widget _buildCenterControls() {
-  return GetBuilder<PlayScreenController>(
-    id: PlayScreenController.playPauseId,
-    builder: (_) {
-      return Center(
-        child: AnimatedOpacity(
-          opacity: controller.isControlsVisible ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: GestureDetector(
-            onTap: controller.togglePlayPause,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: Colors.black45,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                controller.isPlaying ? Icons.pause : Icons.play_arrow,
-                color: Colors.white,
-                size: 50,
-              ),
-            ),
-          ),
-        ),
-      );
-    },
-  );
-}
-
-  Widget _buildControls() {
+  Widget _buildControlsOverlay(BuildContext context) {
     return GetBuilder<PlayScreenController>(
       id: PlayScreenController.controlsId,
       builder: (_) {
-        return AnimatedOpacity(
-          opacity: controller.isControlsVisible && !controller.isLocked ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: AbsorbPointer(
-            absorbing: !controller.isControlsVisible || controller.isLocked,
-            child: Container(
-              color: Colors.black26,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildTopBar(),
-                  _buildCenterControls(),
-                  _buildBottomBar(),
-                ],
+        return Stack(
+          children: [
+            // Main Controls
+            AnimatedOpacity(
+              opacity: controller.isControlsVisible && !controller.isLocked
+                  ? 1.0
+                  : 0.0,
+              duration: const Duration(milliseconds: 300),
+              child: Container(
+                color: Colors.black26,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildTopBar(),
+                    const Spacer(),
+                    _buildBottomControls(context),
+                  ],
+                ),
               ),
             ),
-          ),
+
+            // Additional Controls and Indicators
+            Positioned(
+              left: 16,
+              bottom: 16,
+              child: _buildLockButton(),
+            ),
+            if (controller.isVolumeIndicatorVisible)
+              Positioned(
+                right: 20,
+                top: Get.height / 2 - 50,
+                child: _buildVolumeIndicator(),
+              ),
+            if (controller.isBrightnessIndicatorVisible)
+              Positioned(
+                left: 20,
+                top: Get.height / 2 - 50,
+                child: _buildBrightnessIndicator(),
+              ),
+            if (controller.isSeekIndicatorVisible)
+              Center(child: _buildSeekIndicator()),
+          ],
         );
       },
     );
@@ -150,7 +172,7 @@ Widget _buildCenterControls() {
 
   Widget _buildTopBar() {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -167,108 +189,126 @@ Widget _buildCenterControls() {
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {
-            },
+            onPressed: () {},
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(64, 8, 8, 8),
-      child: Column(
-        children: [
-          _buildProgressBar(),
-          const SizedBox(height: 8),
-          _buildTimeDisplay(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressBar() {
-    return GetBuilder<PlayScreenController>(
-      id: PlayScreenController.progressId,
-      builder: (_) {
-        final double progress = controller.isDragging 
-            ? controller.dragProgress
-            : controller.currentPosition.inMilliseconds / controller.totalDuration.inMilliseconds;
-        
-        return GestureDetector(
-          onHorizontalDragStart: (details) {
-            controller.startDragging();
-          },
-          onHorizontalDragUpdate: (details) {
-            final RenderBox box = Get.context!.findRenderObject() as RenderBox;
-            final double percentage = (details.localPosition.dx / box.size.width).clamp(0.0, 1.0);
-            controller.updateDragProgress(percentage);
-          },
-          onHorizontalDragEnd: (details) {
-            controller.stopDragging();
-          },
-          onTapDown: (details) {
-            final RenderBox box = Get.context!.findRenderObject() as RenderBox;
-            final double percentage = (details.localPosition.dx / box.size.width).clamp(0.0, 1.0);
-            controller.seekToPercentage(percentage);
-          },
-          child: SizedBox(
-            height: 20,
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [
-                Container(
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[700],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                FractionallySizedBox(
-                  widthFactor: progress,
-                  child: Container(
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: Get.theme.primaryColor,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: progress * (Get.width - 64 - 12),
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
+  Widget _buildBottomControls(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildProgressBar(context),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+                IconButton(
+                    icon: Icon(
+                      controller.isMuted ? Icons.volume_off : Icons.volume_up,
                       color: Colors.white,
                     ),
+                    onPressed: controller.toggleMute,
                   ),
-                ),
-              ],
+                  IconButton(
+              icon: Icon(
+                controller.getFitIcon(),
+                color: Colors.white,
+              ),
+              onPressed: controller.toggleFit,
+              tooltip: 'Aspect Ratio: ${controller.currentFit}',
             ),
+            ],
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
-  Widget _buildTimeDisplay() {
+  Widget _buildProgressBar(BuildContext context) {
     return GetBuilder<PlayScreenController>(
       id: PlayScreenController.progressId,
       builder: (_) {
+        final double progress = controller.isDragging
+            ? controller.dragProgress
+            : controller.currentPosition.inMilliseconds /
+                controller.totalDuration.inMilliseconds;
+
         return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              controller.formatDuration(controller.currentPosition),
-              style: const TextStyle(color: Colors.white),
+            controller.formatDuration(controller.currentPosition),
+            style: const TextStyle(color: Colors.white),
+          ),
+            Expanded(
+              child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragStart: (details) => controller.startDragging(),
+                onHorizontalDragUpdate: (details) {
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  final double percentage =
+                      (details.localPosition.dx / box.size.width)
+                          .clamp(0.0, 1.0);
+                  controller.updateDragProgress(percentage);
+                },
+                onHorizontalDragEnd: (details) => controller.stopDragging(),
+                onTapDown: (details) {
+                  final RenderBox box = context.findRenderObject() as RenderBox;
+                  final double percentage =
+                      (details.localPosition.dx / box.size.width)
+                          .clamp(0.0, 1.0);
+                  controller.seekToPercentage(percentage);
+                },
+                child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      FractionallySizedBox(
+                        widthFactor: progress,
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: progress * context.width - 25,
+                        top: -8,
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
             ),
             Text(
-              controller.formatDuration(controller.totalDuration),
-              style: const TextStyle(color: Colors.white),
-            ),
+          controller.formatDuration(controller.totalDuration),
+          style: const TextStyle(color: Colors.white),
+        ),
           ],
         );
       },
@@ -279,9 +319,11 @@ Widget _buildCenterControls() {
     return GetBuilder<PlayScreenController>(
       id: PlayScreenController.lockId,
       builder: (_) {
-        return Positioned(
-          left: 16,
-          bottom: 16,
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.black45,
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: IconButton(
             icon: Icon(
               controller.isLocked ? Icons.lock : Icons.lock_open,
@@ -294,28 +336,58 @@ Widget _buildCenterControls() {
     );
   }
 
-  Widget _buildSeekIndicator() {
-    return GetBuilder<PlayScreenController>(
-      id: PlayScreenController.seekId,
-      builder: (_) {
-        return AnimatedOpacity(
-          opacity: controller.isSeekIndicatorVisible ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                controller.seekIndicatorText,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
+  Widget _buildVolumeIndicator() {
+    return _buildIndicator(
+      icon: Icon(
+        controller.isMuted ? Icons.volume_off : Icons.volume_up,
+        color: Colors.white,
+      ),
+      value: controller.volume,
+    );
+  }
+
+  Widget _buildBrightnessIndicator() {
+    return _buildIndicator(
+      icon: const Icon(Icons.brightness_6, color: Colors.white),
+      value: controller.brightness,
+    );
+  }
+
+  Widget _buildIndicator({
+    required Icon icon,
+    required double value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icon,
+          const SizedBox(width: 8),
+          Text(
+            '${(value * 100).round()}%',
+            style: const TextStyle(color: Colors.white),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeekIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        controller.seekIndicatorText,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
     );
   }
 }

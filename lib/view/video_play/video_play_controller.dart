@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:video_player/video_player.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:zine_player/model/video.dart';
-import 'package:zine_player/view/video_list/video_list_controller.dart';
+import 'package:get/get.dart';
+import 'package:video_player/video_player.dart';
 
 class PlayScreenController extends GetxController {
+  // Constructor and Initial Properties
   late VideoPlayerController videoController;
   final String videoUri;
   final String videoTitle;
@@ -20,18 +18,7 @@ class PlayScreenController extends GetxController {
     required this.startPosition,
   });
 
-  bool isInitialized = false;
-  bool isPlaying = false;
-  bool isControlsVisible = true;
-  Duration currentPosition = Duration.zero;
-  Duration totalDuration = Duration.zero;
-  bool isPortrait = true;
-  bool isLocked = false;
-  bool isSeekIndicatorVisible = false;
-  String seekIndicatorText = '';
-  bool isDragging = false;
-  double dragProgress = 0.0;
-
+  // Static IDs for GetBuilder
   static const String initId = 'init';
   static const String playPauseId = 'playPause';
   static const String controlsId = 'controls';
@@ -39,8 +26,43 @@ class PlayScreenController extends GetxController {
   static const String orientationId = 'orientation';
   static const String lockId = 'lock';
   static const String seekId = 'seek';
+  static const String brightnessId = "brightness";
+  static const String volumeId = "volume";
 
+  // State Variables
+  bool isInitialized = false;
+  bool isPlaying = false;
+  bool isControlsVisible = true;
+  bool isPortrait = true;
+  bool isLocked = false;
+  bool isDragging = false;
+  bool isMuted = false;
+
+  // Indicator States
+  bool isSeekIndicatorVisible = false;
+  bool isVolumeIndicatorVisible = false;
+  bool isBrightnessIndicatorVisible = false;
+
+  // Values
+  Duration currentPosition = Duration.zero;
+  Duration totalDuration = Duration.zero;
+  double dragProgress = 0.0;
+  double playbackSpeed = 1.0;
+  double volume = 1.0;
+  double brightness = 0.5;
+  String seekIndicatorText = '';
+  String currentAspectRatio = 'fit';
+
+  // Timers
   Timer? _seekIndicatorTimer;
+  Timer? _volumeIndicatorTimer;
+  Timer? _brightnessIndicatorTimer;
+  Timer? _hideControlsTimer;
+
+  // Constants
+  final List<double> availablePlaybackSpeeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  String currentFit = 'contain'; // contain, fill, cover
+  final List<String> availableFits = ['contain', 'fill', 'cover'];
 
   @override
   void onInit() {
@@ -49,12 +71,11 @@ class PlayScreenController extends GetxController {
     _hideStatusBar();
   }
 
+  // Initialization Methods
   void initializeVideoPlayer() {
-    if (videoUri.startsWith('content://')) {
-      videoController = VideoPlayerController.contentUri(Uri.parse(videoUri));
-    } else {
-      videoController = VideoPlayerController.file(File(videoUri));
-    }
+    videoController = videoUri.startsWith('content://')
+        ? VideoPlayerController.contentUri(Uri.parse(videoUri))
+        : VideoPlayerController.file(File(videoUri));
 
     videoController.initialize().then((_) {
       isInitialized = true;
@@ -65,110 +86,82 @@ class PlayScreenController extends GetxController {
       play();
     }).catchError((error) {
       print("Error initializing video player: $error");
-      // Handle the error, maybe show a snackbar or dialog to the user
     });
 
     videoController.addListener(_videoListener);
   }
 
   void _videoListener() {
-    final newPosition = videoController.value.position;
-    final newIsPlaying = videoController.value.isPlaying;
-
-    if (newPosition != currentPosition) {
-      currentPosition = newPosition;
+    if (videoController.value.position != currentPosition) {
+      currentPosition = videoController.value.position;
       update([progressId]);
     }
 
-    if (newIsPlaying != isPlaying) {
-      isPlaying = newIsPlaying;
+    if (videoController.value.isPlaying != isPlaying) {
+      isPlaying = videoController.value.isPlaying;
       update([playPauseId]);
     }
   }
 
-  void _updateOrientation() {
-    final aspectRatio = videoController.value.aspectRatio;
-    if (aspectRatio < 1) {
-      // Portrait video
-      isPortrait = true;
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-    } else {
-      // Landscape video
-      isPortrait = false;
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-    }
-  }
-
+  // Playback Controls
   void play() {
     videoController.play();
     isPlaying = true;
-    update([playPauseId]);
+    update([playPauseId, initId]);
   }
 
   void pause() {
     videoController.pause();
     isPlaying = false;
-    update([playPauseId]);
+    update([playPauseId, initId]);
   }
 
   void togglePlayPause() {
     if (isLocked) return;
-    isPlaying = !isPlaying;
-    isPlaying ? videoController.play() : videoController.pause();
-    update([playPauseId]);
-  }
-
-  void toggleControls() {
-    if (isLocked) return;
-    isControlsVisible = !isControlsVisible;
-    update([controlsId]);
+    isPlaying ? pause() : play();
   }
 
   void seekTo(Duration position) {
     if (isLocked) return;
     videoController.seekTo(position);
+    update([initId]);
   }
 
   void seekForward(int seconds) {
     if (isLocked) return;
-    final newPosition = currentPosition + Duration(seconds: seconds);
-    seekTo(newPosition);
+    seekTo(currentPosition + Duration(seconds: seconds));
     _showSeekIndicator('+$seconds seconds');
   }
 
   void seekBackward(int seconds) {
     if (isLocked) return;
-    final newPosition = currentPosition - Duration(seconds: seconds);
-    seekTo(newPosition);
+    seekTo(currentPosition - Duration(seconds: seconds));
     _showSeekIndicator('-$seconds seconds');
   }
 
-  void _showSeekIndicator(String text) {
-    seekIndicatorText = text;
-    isSeekIndicatorVisible = true;
-    update([seekId]);
+  // UI Control Methods
+  void toggleControls() {
+    if (isLocked) return;
+    
+    isControlsVisible = !isControlsVisible;
+    update([controlsId]);
 
-    _seekIndicatorTimer?.cancel();
-    _seekIndicatorTimer = Timer(const Duration(seconds: 1), () {
-      isSeekIndicatorVisible = false;
-      update([seekId]);
-    });
+    _hideControlsTimer?.cancel();
+    if (isControlsVisible) {
+      _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+        isControlsVisible = false;
+        update([controlsId]);
+      });
+    }
   }
 
   void toggleLock() {
     isLocked = !isLocked;
-    if (isLocked) {
-      isControlsVisible = false;
-    }
+    isControlsVisible = !isLocked;
     update([lockId, controlsId, initId]);
   }
 
+  // Progress Bar Methods
   void startDragging() {
     isDragging = true;
     update([progressId]);
@@ -187,9 +180,72 @@ class PlayScreenController extends GetxController {
 
   void seekToPercentage(double percentage) {
     if (isLocked) return;
-    final Duration position = Duration(
-        milliseconds: (percentage * totalDuration.inMilliseconds).round());
-    seekTo(position);
+    seekTo(Duration(milliseconds: (percentage * totalDuration.inMilliseconds).round()));
+  }
+
+  // Volume and Brightness Controls
+  void setVolume(double newVolume) {
+    volume = newVolume.clamp(0.0, 1.0);
+    videoController.setVolume(volume);
+    isMuted = volume == 0;
+    _showVolumeIndicator();
+    update([initId]);
+  }
+
+  void toggleMute() {
+    setVolume(isMuted ? 1.0 : 0.0);
+    update([initId]);
+  }
+
+  void setBrightness(double value) {
+    brightness = value.clamp(0.0, 1.0);
+    _showBrightnessIndicator();
+    update([initId]);
+  }
+
+  // Indicator Methods
+  void _showVolumeIndicator() {
+    isVolumeIndicatorVisible = true;
+    update([volumeId]);
+
+    _volumeIndicatorTimer?.cancel();
+    _volumeIndicatorTimer = Timer(const Duration(seconds: 2), () {
+      isVolumeIndicatorVisible = false;
+      update([volumeId]);
+    });
+  }
+
+  void _showBrightnessIndicator() {
+    isBrightnessIndicatorVisible = true;
+    update([brightnessId]);
+
+    _brightnessIndicatorTimer?.cancel();
+    _brightnessIndicatorTimer = Timer(const Duration(seconds: 2), () {
+      isBrightnessIndicatorVisible = false;
+      update([brightnessId]);
+    });
+  }
+
+  void _showSeekIndicator(String text) {
+    seekIndicatorText = text;
+    isSeekIndicatorVisible = true;
+    update([seekId]);
+
+    _seekIndicatorTimer?.cancel();
+    _seekIndicatorTimer = Timer(const Duration(seconds: 1), () {
+      isSeekIndicatorVisible = false;
+      update([seekId]);
+    });
+  }
+
+  // Utility Methods
+  void _updateOrientation() {
+    isPortrait = videoController.value.aspectRatio < 1;
+    SystemChrome.setPreferredOrientations(
+      isPortrait
+          ? [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]
+          : [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
+    );
   }
 
   void _hideStatusBar() {
@@ -198,32 +254,54 @@ class PlayScreenController extends GetxController {
 
   String formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$hours:$minutes:$seconds";
   }
 
-  Future<void> updateVideoPosition( Duration position) async {
-    Video video = Get.find<VideoController>().recentlyPlayed.where((v) => v.uri == videoUri).first;
-    video.lastPosition = position;
-    int index = Get.find<VideoController>().recentlyPlayed.indexWhere((v) => v.id == video.id);
-    if (index != -1) {
-      Get.find<VideoController>().recentlyPlayed[index] = video;
-      await saveRecentlyPlayed();
+  // Add this method
+  void toggleFit() {
+    final currentIndex = availableFits.indexOf(currentFit);
+    final nextIndex = (currentIndex + 1) % availableFits.length;
+    currentFit = availableFits[nextIndex];
+    update([initId]);
+  }
+
+  // Add this method to get the current BoxFit
+  BoxFit getCurrentFit() {
+    switch (currentFit) {
+      case 'fill':
+        return BoxFit.fill;
+      case 'cover':
+        return BoxFit.cover;
+      default:
+        return BoxFit.contain;
     }
   }
 
-  Future<void> saveRecentlyPlayed() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> recentlyPlayedJson = Get.find<VideoController>().recentlyPlayed
-        .map((video) => jsonEncode(video.toMap()))
-        .toList();
-    await prefs.setStringList('recentlyPlayed', recentlyPlayedJson);
+  // Add this method to get the fit icon
+  IconData getFitIcon() {
+    switch (currentFit) {
+      case 'fill':
+        return Icons.fit_screen;
+      case 'cover':
+        return Icons.rectangle;
+      default:
+        return Icons.fit_screen_outlined;
+    }
   }
 
+  // Cleanup
   @override
   void onClose() {
-    updateVideoPosition( videoController.value.position);
+    _hideControlsTimer?.cancel();
+    _volumeIndicatorTimer?.cancel();
+    _brightnessIndicatorTimer?.cancel();
+    _seekIndicatorTimer?.cancel();
+    videoController.removeListener(_videoListener);
+    videoController.dispose();
+    
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -231,8 +309,7 @@ class PlayScreenController extends GetxController {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    videoController.removeListener(_videoListener);
-    videoController.dispose();
+    
     super.onClose();
   }
 }
