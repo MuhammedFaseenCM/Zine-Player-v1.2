@@ -1,32 +1,58 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zine_player/controller/mixins/recently_played_mixin.dart';
+import 'package:zine_player/controller/mixins/video_list_mixin.dart';
+import 'package:zine_player/controller/mixins/video_operations_mixin.dart';
 import 'package:zine_player/model/video.dart';
-import 'package:zine_player/routes/routes_name.dart';
-import 'package:zine_player/view/favorite_video_list/favorite_videos_controller.dart';
 
 
-class VideoController extends GetxController {
-  RxList<Video> videos = <Video>[].obs;
-  RxList<Video> recentlyPlayed = <Video>[].obs;
-  RxBool hasPermission = false.obs;
-  RxBool isLoading = false.obs;
+class VideoController extends GetxController with VideoListMixin, VideoOperationsMixin, RecentlyPlayedMixin {
+
   final MethodChannel _channel = const MethodChannel('com.example.zine_player/device_info');
   final MethodChannel _mediaStoreChannel = const MethodChannel('com.example.zine_player/media_store');
+
+  static const String videosID = 'videos';
+  static const String permissionID = 'permission';
+  static const String loadingID = 'loading';
+  static const String recentlyPlayedID = 'recentlyPlayed';
+  final List<Function> _listeners = [];
+  bool _isInitialized = false;
+  final videoListUpdated = false.obs;
+
+  @override
+  void Function() addListener(void Function() listener) {
+    _listeners.add(listener);
+    return listener;
+  }
+
+  @override
+  void updateControllerState() {
+    update([videosID]);
+  }
+
+   void notifyListeners() {
+    for (var listener in _listeners) {
+      listener();
+    }
+  }
 
   @override
   void onInit() {
     super.onInit();
-    checkPermissionAndLoadVideos();
+    if (!_isInitialized) {
+      checkPermissionAndLoadVideos();
+      _isInitialized = true;
+    }
   }
 
   Future<void> checkPermissionAndLoadVideos() async {
-    hasPermission.value = await requestStoragePermission();
-    if (hasPermission.value) {
+    hasPermission = await requestStoragePermission();
+    update([permissionID]);
+    if (hasPermission) {
       await loadVideos();
       await loadRecentlyPlayed();
     }
@@ -66,22 +92,6 @@ class VideoController extends GetxController {
       print("Failed to get Android SDK version: ${e.message}");
     }
     return 0;
-  }
-
-  Future<void> loadVideos() async {
-    isLoading.value = true;
-    if (hasPermission.value) {
-      if (Platform.isAndroid && await _getAndroidSdkVersion() >= 29) {
-        videos.value = await _getVideosUsingMediaStore();
-      } else {
-        final directory = await getExternalStorageDirectory();
-        videos.value = await getVideosFromDirectory(directory!);
-      }
-      await _updateFavoriteStatus();
-    } else {
-      print('Storage permission not granted');
-    }
-    isLoading.value = false;
   }
 
 
@@ -137,71 +147,23 @@ class VideoController extends GetxController {
       video.isFavorite = favoriteIds.contains(video.id);
     }
   }
+  
+  @override
+  Future<void> loadVideos() async {
+   setLoading(true);
 
-  Future<void> toggleFavorite(Video video) async {
-    video.toggleFavorite();
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> favoriteIds = prefs.getStringList('favoriteVideos') ?? [];
-    if (video.isFavorite) {
-      favoriteIds.add(video.id);
-    } else {
-      favoriteIds.remove(video.id);
+    if (hasPermission) {
+      if (Platform.isAndroid && await _getAndroidSdkVersion() >= 29) {
+        videos = await _getVideosUsingMediaStore();
+      } else {
+        final directory = await getExternalStorageDirectory();
+        videos = await getVideosFromDirectory(directory!);
+      }
+      await _updateFavoriteStatus();
+      videoListUpdated.toggle();
+      getFavoriteVideos();
     }
-    await prefs.setStringList('favoriteVideos', favoriteIds);
-    videos.refresh();
 
-    // Update FavoriteVideoController if it's active
-    if (Get.isRegistered<FavoriteVideosController>()) {
-      Get.find<FavoriteVideosController>().loadFavorites();
-    }
-  }
-
-  // Recently played screen section
-    Future<void> loadRecentlyPlayed() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> recentlyPlayedJson = prefs.getStringList('recentlyPlayed') ?? [];
-    recentlyPlayed.value = recentlyPlayedJson
-        .map((json) => Video.fromMap(jsonDecode(json)))
-        .toList()
-      ..sort((a, b) => b.lastPlayed!.compareTo(a.lastPlayed!));
-  }
-
-  Future<void> saveRecentlyPlayed() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> recentlyPlayedJson = recentlyPlayed
-        .map((video) => jsonEncode(video.toMap()))
-        .toList();
-    await prefs.setStringList('recentlyPlayed', recentlyPlayedJson);
-  }
-
-  void addToRecentlyPlayed(Video video) {
-    video.lastPlayed = DateTime.now();
-    recentlyPlayed.removeWhere((v) => v.id == video.id);
-    recentlyPlayed.insert(0, video);
-    if (recentlyPlayed.length > 10) {
-      recentlyPlayed.removeLast();
-    }
-    saveRecentlyPlayed();
-  }
-
-  Future<void> updateVideoPosition(Video video, Duration position) async {
-    video.lastPosition = position;
-    int index = recentlyPlayed.indexWhere((v) => v.id == video.id);
-    if (index != -1) {
-      recentlyPlayed[index] = video;
-      saveRecentlyPlayed();
-    }
-  }
-
-  void playVideo(Video video) {
-    addToRecentlyPlayed(video);
-    Get.toNamed(
-      ZPRouteNames.videoPlay,
-      arguments: {
-        'videoFile': video.uri,
-        'videoTitle': video.name,
-        'startPosition': video.lastPosition,
-      },
-    );
+    setLoading(false);
   }
 }

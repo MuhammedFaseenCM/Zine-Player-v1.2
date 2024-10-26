@@ -69,9 +69,9 @@ class PlaylistScreen extends GetView<PlaylistController> {
           children: [
             TextField(
               controller: nameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: AppStrings.playlistName,
-                border: const OutlineInputBorder(),
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),

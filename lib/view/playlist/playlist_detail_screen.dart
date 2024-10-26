@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:zine_player/components/video_list_item.dart';
+import 'package:zine_player/controller/mixins/video_list_mixin.dart';
 import 'package:zine_player/model/playlist.dart';
 import 'package:zine_player/view/playlist/playlist_controller.dart';
 
@@ -18,7 +19,7 @@ class PlaylistDetailScreen extends GetView<PlaylistController> {
         elevation: 0,
       ),
       body: GetBuilder<PlaylistController>(
-        id: 'playlist_${playlist.id}',
+        id: VideoListMixin.playlistID,
         builder: (_) {
           final videos = controller.getVideosInPlaylist(playlist);
           if (videos.isEmpty) {
@@ -35,10 +36,11 @@ class PlaylistDetailScreen extends GetView<PlaylistController> {
               final video = videos[index];
               return VideoListItem(
                 video: video,
-                onFavoriteToggle: (v) => controller.toggleFavorite(v, playlist),
-                onAddToPlaylist: (_) {}, // Not needed in playlist detail
+                onFavoriteToggle: controller.toggleFavorite,
+                onAddToPlaylist: (_) {},
                 showFavoriteButton: true,
-                showAddToPlaylistButton: false, onTap: (_ ) {  },
+                showAddToPlaylistButton: false, 
+                onTap: controller.playVideo,
               );
             },
           );

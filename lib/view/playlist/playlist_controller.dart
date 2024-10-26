@@ -1,13 +1,15 @@
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zine_player/controller/mixins/recently_played_mixin.dart';
+import 'package:zine_player/controller/mixins/video_list_mixin.dart';
+import 'package:zine_player/controller/mixins/video_operations_mixin.dart';
 import 'dart:convert';
 import 'package:zine_player/model/playlist.dart';
 import 'package:zine_player/model/video.dart';
 import 'package:uuid/uuid.dart';
-import 'package:zine_player/view/favorite_video_list/favorite_videos_controller.dart';
 import 'package:zine_player/view/video_list/video_list_controller.dart';
 
-class PlaylistController extends GetxController {
+class PlaylistController extends GetxController with VideoOperationsMixin, RecentlyPlayedMixin, VideoListMixin {
   List<Playlist> playlists = [];
   final videoController = Get.find<VideoController>();
 
@@ -51,14 +53,14 @@ class PlaylistController extends GetxController {
     if (!playlist.videoIds.contains(video.id)) {
       playlist.videoIds.add(video.id);
       await savePlaylists();
-      update(['playlist_${playlist.id}', 'playlists']);
+      update([VideoListMixin.playlistID, 'playlists']);
     }
   }
 
   Future<void> removeVideoFromPlaylist(Playlist playlist, String videoId) async {
     playlist.videoIds.remove(videoId);
     await savePlaylists();
-    update(['playlist_${playlist.id}', 'playlists']);
+    update([VideoListMixin.playlistID, 'playlists']);
   }
 
   List<Video> getVideosInPlaylist(Playlist playlist) {
@@ -66,22 +68,13 @@ class PlaylistController extends GetxController {
         .where((video) => playlist.videoIds.contains(video.id))
         .toList();
   }
+  
+  @override
+  void updateControllerState() {
+  }
+  
+  @override
+  Future<void> loadVideos() async {
 
-    Future<void> toggleFavorite(Video video, Playlist playlist) async {
-    video.toggleFavorite();
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> favoriteIds = prefs.getStringList('favoriteVideos') ?? [];
-    if (video.isFavorite) {
-      favoriteIds.add(video.id);
-    } else {
-      favoriteIds.remove(video.id);
-    }
-    await prefs.setStringList('favoriteVideos', favoriteIds);
-
-    // Update FavoriteVideoController if it's active
-    if (Get.isRegistered<FavoriteVideosController>()) {
-      Get.find<FavoriteVideosController>().loadFavorites();
-    }
-    update(['playlist_${playlist.id}', 'playlists']);
   }
 }

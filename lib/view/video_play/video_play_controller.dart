@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
+import 'package:zine_player/view/video_list/video_list_controller.dart';
 
 class PlayScreenController extends GetxController {
   // Constructor and Initial Properties
@@ -291,10 +292,14 @@ class PlayScreenController extends GetxController {
         return Icons.fit_screen_outlined;
     }
   }
-
+  
   // Cleanup
   @override
   void onClose() {
+    Get.find<VideoController>().updateVideoPosition(
+      Get.find<VideoController>().videos.where((video) => video.uri == videoUri).first,
+      currentPosition
+    );
     _hideControlsTimer?.cancel();
     _volumeIndicatorTimer?.cancel();
     _brightnessIndicatorTimer?.cancel();

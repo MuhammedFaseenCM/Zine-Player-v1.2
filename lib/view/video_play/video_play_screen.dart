@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
+import 'package:zine_player/components/progress_indicator.dart';
+import 'package:zine_player/theme/app_theme.dart';
 import 'package:zine_player/view/video_play/video_play_controller.dart';
 
 class PlayScreen extends GetView<PlayScreenController> {
@@ -232,11 +234,6 @@ class PlayScreen extends GetView<PlayScreenController> {
     return GetBuilder<PlayScreenController>(
       id: PlayScreenController.progressId,
       builder: (_) {
-        final double progress = controller.isDragging
-            ? controller.dragProgress
-            : controller.currentPosition.inMilliseconds /
-                controller.totalDuration.inMilliseconds;
-
         return Row(
           children: [
             Text(
@@ -245,65 +242,19 @@ class PlayScreen extends GetView<PlayScreenController> {
           ),
             Expanded(
               child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onHorizontalDragStart: (details) => controller.startDragging(),
-                onHorizontalDragUpdate: (details) {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final double percentage =
-                      (details.localPosition.dx / box.size.width)
-                          .clamp(0.0, 1.0);
-                  controller.updateDragProgress(percentage);
-                },
-                onHorizontalDragEnd: (details) => controller.stopDragging(),
-                onTapDown: (details) {
-                  final RenderBox box = context.findRenderObject() as RenderBox;
-                  final double percentage =
-                      (details.localPosition.dx / box.size.width)
-                          .clamp(0.0, 1.0);
-                  controller.seekToPercentage(percentage);
-                },
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: progress,
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        left: progress * context.width - 25,
-                        top: -8,
-                        child: Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(5.0),
+                  child: ZPProgressIndicator(
+                  controller.videoController, 
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: AppTheme.primaryColor,
+                    bufferedColor: Colors.grey,
+                    backgroundColor: Colors.grey
+                  ),),
                 ),
               ),
-            ),
             ),
             Text(
           controller.formatDuration(controller.totalDuration),

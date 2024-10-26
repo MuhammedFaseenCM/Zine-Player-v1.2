@@ -19,46 +19,59 @@ class VideoListScreen extends GetView<VideoController> {
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
       ),
-      body: Obx(() {
-        if (!controller.hasPermission.value) {
-          return Center(
-            child: ElevatedButton(
-              onPressed: () => controller.checkPermissionAndLoadVideos(),
-              child: Text(
-                AppStrings.grantPermission,
-                style: Theme.of(context).textTheme.labelLarge,
+      body: GetBuilder<VideoController>(
+        id: VideoController.permissionID,
+        builder: (controller) {
+          if (!controller.hasPermission) {
+            return Center(
+              child: ElevatedButton(
+                onPressed: () => controller.checkPermissionAndLoadVideos(),
+                child: Text(
+                  AppStrings.grantPermission,
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
               ),
-            ),
-          );
-        }
-
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (controller.videos.isEmpty) {
-          return Center(
-            child: Text(
-              AppStrings.noVideosFound,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          );
-        }
-
-        return ListView.builder(
-          itemCount: controller.videos.length,
-          itemBuilder: (context, index) {
-            final video = controller.videos[index];
-            return VideoListItem(
-              video: video,
-              onFavoriteToggle: controller.toggleFavorite,
-              onAddToPlaylist: (video) =>
-                  Get.dialog(AddToPlaylistDialog(video: video)),
-              onTap: controller.playVideo,
             );
-          },
-        );
-      }),
+          }
+
+          return GetBuilder<VideoController>(
+            id: VideoController.loadingID,
+            builder: (controller) {
+              if (controller.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              return GetBuilder<VideoController>(
+                id: VideoController.videosID,
+                builder: (controller) {
+                  if (controller.videos.isEmpty) {
+                    return Center(
+                      child: Text(
+                        AppStrings.noVideosFound,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: controller.videos.length,
+                    itemBuilder: (context, index) {
+                      final video = controller.videos[index];
+                      return VideoListItem(
+                        video: video,
+                        onFavoriteToggle: controller.toggleFavorite,
+                        onAddToPlaylist: (video) =>
+                            Get.dialog(AddToPlaylistDialog(video: video)),
+                        onTap: controller.playVideo,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => controller.loadVideos(),
         child: const Icon(Icons.refresh),
