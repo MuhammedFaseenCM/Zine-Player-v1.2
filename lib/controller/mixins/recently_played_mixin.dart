@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zine_player/controller/mixins/video_list_mixin.dart';
 import 'package:zine_player/model/video.dart';
 
 mixin RecentlyPlayedMixin on GetxController {
@@ -11,21 +12,28 @@ mixin RecentlyPlayedMixin on GetxController {
 
   Future<void> loadRecentlyPlayed() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> recentlyPlayedJson = prefs.getStringList('recentlyPlayed') ?? [];
+    List<String> recentlyPlayedJson =
+        prefs.getStringList('recentlyPlayed') ?? [];
     recentlyPlayed = recentlyPlayedJson
         .map((json) => Video.fromMap(jsonDecode(json)))
         .toList()
-      ..sort((a, b) => b.lastPlayed?.compareTo(a.lastPlayed ?? DateTime(0)) ?? 0);
+      ..sort(
+          (a, b) => b.lastPlayed?.compareTo(a.lastPlayed ?? DateTime(0)) ?? 0);
     update([recentlyPlayedID]);
   }
 
   Future<void> saveRecentlyPlayed() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> recentlyPlayedJson = recentlyPlayed
-        .map((video) => jsonEncode(video.toMap()))
-        .toList();
+    List<String> recentlyPlayedJson =
+        recentlyPlayed.map((video) => jsonEncode(video.toMap())).toList();
     await prefs.setStringList('recentlyPlayed', recentlyPlayedJson);
-    update([recentlyPlayedID]);
+    update([
+      recentlyPlayedID,
+      VideoListMixin.videosID,
+      VideoListMixin.favoritesID,
+      VideoListMixin.playlistID,
+      VideoListMixin.loadingID,
+    ]);
   }
 
   void addToRecentlyPlayed(Video video) {
@@ -47,5 +55,11 @@ mixin RecentlyPlayedMixin on GetxController {
       await saveRecentlyPlayed();
       update([recentlyPlayedID]);
     }
+  }
+
+  Future<void> clearRecentlyPlayed() async {
+    recentlyPlayed.clear();
+    await saveRecentlyPlayed();
+    update([recentlyPlayedID]);
   }
 }

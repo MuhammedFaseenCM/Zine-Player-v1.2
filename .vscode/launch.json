@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "zine_player",
+            "name": "Zine Player",
             "request": "launch",
             "type": "dart"
         },

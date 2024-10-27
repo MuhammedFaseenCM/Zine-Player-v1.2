@@ -1,4 +1,4 @@
-package com.example.zine_player
+package com.zineplayer.app
 
 import android.content.ContentUris
 import android.graphics.Bitmap
@@ -13,8 +13,8 @@ import android.util.Size
 import java.io.ByteArrayOutputStream
 
 class MainActivity: FlutterActivity() {
-    private val DEVICE_INFO_CHANNEL = "com.example.zine_player/device_info"
-    private val MEDIA_STORE_CHANNEL = "com.example.zine_player/media_store"
+    private val DEVICE_INFO_CHANNEL = "com.zineplayer.app/device_info"
+    private val MEDIA_STORE_CHANNEL = "com.zineplayer.app/media_store"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

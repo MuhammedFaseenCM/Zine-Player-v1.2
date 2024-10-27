@@ -29,6 +29,7 @@ class PlayScreenController extends GetxController {
   static const String seekId = 'seek';
   static const String brightnessId = "brightness";
   static const String volumeId = "volume";
+  static const String gestureId = "gesture";
 
   // State Variables
   bool isInitialized = false;
@@ -85,6 +86,7 @@ class PlayScreenController extends GetxController {
       seekTo(startPosition);
       update([initId, orientationId]);
       play();
+      videoController.setLooping(true);
     }).catchError((error) {
       print("Error initializing video player: $error");
     });
@@ -120,12 +122,19 @@ class PlayScreenController extends GetxController {
   void togglePlayPause() {
     if (isLocked) return;
     isPlaying ? pause() : play();
+    update([gestureId]);
   }
 
   void seekTo(Duration position) {
     if (isLocked) return;
-    videoController.seekTo(position);
-    update([initId]);
+    videoController.seekTo(position).then((_){
+      Future.delayed(const Duration(milliseconds: 1000),(){
+      isPlaying = videoController.value.isPlaying ;
+      }
+      );
+      
+    });
+    update([gestureId]);
   }
 
   void seekForward(int seconds) {
@@ -151,7 +160,7 @@ class PlayScreenController extends GetxController {
     if (isControlsVisible) {
       _hideControlsTimer = Timer(const Duration(seconds: 3), () {
         isControlsVisible = false;
-        update([controlsId]);
+        update([gestureId]);
       });
     }
   }
@@ -190,7 +199,7 @@ class PlayScreenController extends GetxController {
     videoController.setVolume(volume);
     isMuted = volume == 0;
     _showVolumeIndicator();
-    update([initId]);
+    update([gestureId]);
   }
 
   void toggleMute() {
@@ -201,7 +210,7 @@ class PlayScreenController extends GetxController {
   void setBrightness(double value) {
     brightness = value.clamp(0.0, 1.0);
     _showBrightnessIndicator();
-    update([initId]);
+    update([gestureId]);
   }
 
   // Indicator Methods

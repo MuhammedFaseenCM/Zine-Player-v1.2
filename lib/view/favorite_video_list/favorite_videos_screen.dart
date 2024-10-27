@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zine_player/components/video_list_item.dart';
 import 'package:zine_player/controller/mixins/video_list_mixin.dart';
 import 'package:zine_player/utils/strings.dart';
@@ -23,7 +24,13 @@ class FavoriteVideosScreen extends GetView<VideoController> {
           id: VideoListMixin.loadingID,
           builder: (controller) {
             if (controller.isLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return Center(
+                  child: Lottie.asset(
+                    AppStrings.loadingLottie,
+                    width: 200,
+                    height: 200,
+                  ),
+                );
             }
 
             return GetBuilder<VideoController>(
@@ -31,7 +38,13 @@ class FavoriteVideosScreen extends GetView<VideoController> {
               builder: (controller) {
               var  favVideos = controller.videos.where((video)=> video.isFavorite).toList();
                 if (favVideos.isEmpty) {
-                  return const Center(child: Text('No favorite videos'));
+                  return Center(
+                  child: Lottie.asset(
+                    AppStrings.favEmptyLottie,
+                    width: 200,
+                    height: 200,
+                  ),
+                );
                 }
 
                 return ListView.builder(

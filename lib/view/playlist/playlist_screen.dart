@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zine_player/utils/strings.dart';
 import 'package:zine_player/view/playlist/playlist_controller.dart';
 import 'package:zine_player/view/playlist/playlist_detail_screen.dart';
@@ -21,12 +22,13 @@ class PlaylistScreen extends GetView<PlaylistController> {
           id: 'playlists',
           builder: (_) {
             if (controller.playlists.isEmpty) {
-              return const Center(
-                child: Text(
-                  'No playlists created yet',
-                  style: TextStyle(fontSize: 16),
-                ),
-              );
+              return Center(
+                  child: Lottie.asset(
+                    AppStrings.emptyLottie,
+                    width: 200,
+                    height: 200,
+                  ),
+                );
             }
             return ListView.builder(
               itemCount: controller.playlists.length,

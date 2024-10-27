@@ -33,4 +33,9 @@ class AppStrings {
 
   // Errors
   static const errorLoadingVideos = 'Error loading videos';
+
+  //Assets
+  static const loadingLottie = 'assets/animations/video_loading.json';
+  static const emptyLottie = 'assets/animations/video_empty.json';
+  static const favEmptyLottie = 'assets/animations/fav_empty.json';
 }

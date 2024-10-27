@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:video_player/video_player.dart';
 import 'package:zine_player/components/progress_indicator.dart';
 import 'package:zine_player/theme/app_theme.dart';
+import 'package:zine_player/utils/strings.dart';
 import 'package:zine_player/view/video_play/video_play_controller.dart';
 
 class PlayScreen extends GetView<PlayScreenController> {
@@ -26,7 +28,13 @@ class PlayScreen extends GetView<PlayScreenController> {
       id: PlayScreenController.initId,
       builder: (_) {
         if (!controller.isInitialized) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+                  child: Lottie.asset(
+                    AppStrings.loadingLottie,
+                    width: 200,
+                    height: 200,
+                  ),
+                );
         }
 
         return Stack(
@@ -81,43 +89,48 @@ class PlayScreen extends GetView<PlayScreenController> {
   }
 
   Widget _buildGestureDetector(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        if (!controller.isLocked) {
-          controller.toggleControls();
-        }
-      },
-      onDoubleTap: () {
-        if (!controller.isLocked) {
-          controller.togglePlayPause();
-        }
-      },
-      onVerticalDragUpdate: (details) {
-        if (controller.isLocked) return;
-
-        final isRightSide = details.globalPosition.dx > Get.width / 2;
-        final delta = -details.delta.dy / Get.height;
-
-        if (isRightSide) {
-          controller.setVolume(controller.volume + delta);
-        } else {
-          controller.setBrightness(controller.brightness + delta);
-        }
-      },
-      onHorizontalDragUpdate: (details) {
-        if (controller.isLocked) return;
-
-        final delta = details.delta.dx;
-        final duration = controller.totalDuration.inMilliseconds.toDouble();
-        final position = controller.currentPosition.inMilliseconds.toDouble();
-        final change = (delta / Get.width) * duration;
-
-        controller.seekTo(Duration(
-          milliseconds: (position + change).clamp(0.0, duration).toInt(),
-        ));
-      },
-      child: _buildControlsOverlay(context),
+    return GetBuilder<PlayScreenController>(
+      id: PlayScreenController.playPauseId,
+      builder: (_) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (!controller.isLocked) {
+              controller.toggleControls();
+            }
+          },
+          onDoubleTap: () {
+            if (!controller.isLocked) {
+              controller.togglePlayPause();
+            }
+          },
+          onVerticalDragUpdate: (details) {
+            if (controller.isLocked) return;
+        
+            final isRightSide = details.globalPosition.dx > Get.width / 2;
+            final delta = -details.delta.dy / Get.height;
+        
+            if (isRightSide) {
+              controller.setVolume(controller.volume + delta);
+            } else {
+              controller.setBrightness(controller.brightness + delta);
+            }
+          },
+          onHorizontalDragUpdate: (details) {
+            if (controller.isLocked) return;
+        
+            final delta = details.delta.dx;
+            final duration = controller.totalDuration.inMilliseconds.toDouble();
+            final position = controller.currentPosition.inMilliseconds.toDouble();
+            final change = (delta / Get.width) * duration;
+        
+            controller.seekTo(Duration(
+              milliseconds: (position + change).clamp(0.0, duration).toInt(),
+            ));
+          },
+          child: _buildControlsOverlay(context),
+        );
+      }
     );
   }
 

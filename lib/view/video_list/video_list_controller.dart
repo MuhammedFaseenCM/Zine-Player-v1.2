@@ -12,8 +12,8 @@ import 'package:zine_player/model/video.dart';
 
 class VideoController extends GetxController with VideoListMixin, VideoOperationsMixin, RecentlyPlayedMixin {
 
-  final MethodChannel _channel = const MethodChannel('com.example.zine_player/device_info');
-  final MethodChannel _mediaStoreChannel = const MethodChannel('com.example.zine_player/media_store');
+  final MethodChannel _channel = const MethodChannel('com.zineplayer.app/device_info');
+  final MethodChannel _mediaStoreChannel = const MethodChannel('com.zineplayer.app/media_store');
 
   static const String videosID = 'videos';
   static const String permissionID = 'permission';

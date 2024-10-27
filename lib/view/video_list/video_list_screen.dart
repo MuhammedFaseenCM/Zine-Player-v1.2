@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zine_player/components/add_to_playlist_dialog.dart';
 import 'package:zine_player/components/video_list_item.dart';
 import 'package:zine_player/utils/strings.dart';
@@ -38,7 +39,13 @@ class VideoListScreen extends GetView<VideoController> {
             id: VideoController.loadingID,
             builder: (controller) {
               if (controller.isLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return Center(
+                  child: Lottie.asset(
+                    AppStrings.loadingLottie,
+                    width: 200,
+                    height: 200,
+                  ),
+                );
               }
 
               return GetBuilder<VideoController>(
