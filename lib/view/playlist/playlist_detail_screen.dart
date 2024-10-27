@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 import 'package:zine_player/components/video_list_item.dart';
 import 'package:zine_player/controller/mixins/video_list_mixin.dart';
 import 'package:zine_player/model/playlist.dart';
+import 'package:zine_player/utils/strings.dart';
 import 'package:zine_player/view/playlist/playlist_controller.dart';
 
 class PlaylistDetailScreen extends GetView<PlaylistController> {
@@ -23,10 +25,18 @@ class PlaylistDetailScreen extends GetView<PlaylistController> {
         builder: (_) {
           final videos = controller.getVideosInPlaylist(playlist);
           if (videos.isEmpty) {
-            return const Center(
-              child: Text(
-                'No videos in this playlist',
-                style: TextStyle(fontSize: 16),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Lottie.asset(
+                    AppStrings.emptyLottie,
+                    width: 200,
+                    height: 200
+                  ),
+                  const SizedBox(height: 20),
+                  Text('This playlist is empty', style: Theme.of(context).textTheme.titleLarge),
+                ],
               ),
             );
           }
@@ -34,13 +44,27 @@ class PlaylistDetailScreen extends GetView<PlaylistController> {
             itemCount: videos.length,
             itemBuilder: (context, index) {
               final video = videos[index];
-              return VideoListItem(
-                video: video,
-                onFavoriteToggle: controller.toggleFavorite,
-                onAddToPlaylist: (_) {},
-                showFavoriteButton: true,
-                showAddToPlaylistButton: false, 
-                onTap: controller.playVideo,
+              return Dismissible(
+                key: Key(video.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Colors.red,
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                // confirmDismiss: (direction) => (){return true;},
+                onDismissed: (direction) async {
+                  await controller.removeVideoFromPlaylist(playlist, video.id);
+                },
+                child: VideoListItem(
+                  video: video,
+                  onFavoriteToggle: controller.toggleFavorite,
+                  onAddToPlaylist: (_) {},
+                  showFavoriteButton: true,
+                  showAddToPlaylistButton: false,
+                  onTap: controller.playVideo,
+                ),
               );
             },
           );

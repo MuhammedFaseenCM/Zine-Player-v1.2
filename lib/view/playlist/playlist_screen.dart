@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
+import 'package:zine_player/model/playlist.dart';
 import 'package:zine_player/utils/strings.dart';
 import 'package:zine_player/view/playlist/playlist_controller.dart';
 import 'package:zine_player/view/playlist/playlist_detail_screen.dart';
@@ -34,16 +35,26 @@ class PlaylistScreen extends GetView<PlaylistController> {
               itemCount: controller.playlists.length,
               itemBuilder: (context, index) {
                 final playlist = controller.playlists[index];
-                return ListTile(
-                    title: Text(playlist.name),
+                return Dismissible(
+                  key: Key(playlist.id),
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  direction: DismissDirection.endToStart,
+                  onDismissed: (direction) {
+                    controller.deletePlaylist(playlist);
+                  },
+                  child: ListTile(
+                    title: Text(playlist.name, style: Get.textTheme.titleLarge),
                     subtitle: Text(AppStrings.videosCount.replaceFirst(
                         '{count}', playlist.videoIds.length.toString())),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => controller.deletePlaylist(playlist),
-                    ),
-                    onTap: () =>
-                        Get.to(() => PlaylistDetailScreen(playlist: playlist)));
+                    onLongPress: () => _showEditPlaylistDialog(context, playlist),
+                    onTap: () => Get.to(() => PlaylistDetailScreen(playlist: playlist)),
+                  ),
+                );
               },
             );
           }),
@@ -51,6 +62,61 @@ class PlaylistScreen extends GetView<PlaylistController> {
         onPressed: () => _showCreatePlaylistDialog(context),
         backgroundColor: Colors.deepPurple,
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _showEditPlaylistDialog(BuildContext context, Playlist playlist) {
+    final TextEditingController nameController = TextEditingController(text: playlist.name);
+    final RxString errorText = ''.obs;
+
+    Get.dialog(
+      AlertDialog(
+        title: const Text(
+          AppStrings.editPlaylist,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        contentPadding: const EdgeInsets.all(16.0),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                hintText: AppStrings.playlistName,
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Obx(() => errorText.value.isNotEmpty
+                ? Text(
+                    errorText.value,
+                    style: const TextStyle(color: Colors.red),
+                  )
+                : const SizedBox.shrink()),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: Text(AppStrings.cancel,
+                style: TextStyle(color: Colors.grey[700])),
+            onPressed: () => Get.back(),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+            ),
+            child: const Text(AppStrings.save),
+            onPressed: () {
+              if (nameController.text.isEmpty) {
+                errorText.value = 'Playlist name cannot be empty';
+              } else {
+                controller.updatePlaylistName(playlist, nameController.text);
+                Get.back();
+              }
+            },
+          ),
+        ],
       ),
     );
   }

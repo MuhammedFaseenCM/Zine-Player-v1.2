@@ -22,6 +22,8 @@ class AppStrings {
   static const playlistName = 'Playlist Name';
   static const addToPlaylist = 'Add to Playlist';
   static const videosCount = '{count} videos';
+  static const editPlaylist = 'Edit Playlist';
+  static const save = 'Save';
 
   // Recently played
   static const String recentlyPlayed = 'Recently Played';

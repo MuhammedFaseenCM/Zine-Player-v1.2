@@ -77,4 +77,13 @@ class PlaylistController extends GetxController with VideoOperationsMixin, Recen
   Future<void> loadVideos() async {
 
   }
+
+  void updatePlaylistName(Playlist playlist, String newName) {
+    final index = playlists.indexWhere((p) => p.id == playlist.id);
+    if (index != -1) {
+      playlists[index] = playlist.copyWith(name: newName);
+      update(['playlists']);
+      savePlaylists();
+    }
+  }
 }

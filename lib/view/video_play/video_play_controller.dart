@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
+import 'package:zine_player/model/subtitle.dart';
 import 'package:zine_player/view/video_list/video_list_controller.dart';
 
 class PlayScreenController extends GetxController {
@@ -12,11 +14,13 @@ class PlayScreenController extends GetxController {
   final String videoUri;
   final String videoTitle;
   final Duration startPosition;
+  String? subtitlePath;
 
   PlayScreenController({
     required this.videoUri,
     required this.videoTitle,
     required this.startPosition,
+    this.subtitlePath,
   });
 
   // Static IDs for GetBuilder
@@ -30,6 +34,7 @@ class PlayScreenController extends GetxController {
   static const String brightnessId = "brightness";
   static const String volumeId = "volume";
   static const String gestureId = "gesture";
+  static const String subtitleId = "subtitle";
 
   // State Variables
   bool isInitialized = false;
@@ -39,6 +44,8 @@ class PlayScreenController extends GetxController {
   bool isLocked = false;
   bool isDragging = false;
   bool isMuted = false;
+  bool subtitlesEnabled = false;
+  bool hasSubtitle = false;
 
   // Indicator States
   bool isSeekIndicatorVisible = false;
@@ -54,22 +61,44 @@ class PlayScreenController extends GetxController {
   double brightness = 0.5;
   String seekIndicatorText = '';
   String currentAspectRatio = 'fit';
+  
+  // Subtitle related
+  List<Subtitle> subtitles = [];
+  Subtitle? currentSubtitle;
+  double subtitleDelay = 0.0; // in seconds
 
   // Timers
   Timer? _seekIndicatorTimer;
   Timer? _volumeIndicatorTimer;
   Timer? _brightnessIndicatorTimer;
   Timer? _hideControlsTimer;
+  Timer? _subtitleTimer;
 
   // Constants
   final List<double> availablePlaybackSpeeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
   String currentFit = 'contain'; // contain, fill, cover
   final List<String> availableFits = ['contain', 'fill', 'cover'];
 
+  // Subtitle Style
+  TextStyle subtitleStyle = const TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+    shadows: [
+      Shadow(
+        offset: Offset(0, 1),
+        blurRadius: 4,
+        color: Colors.black,
+      ),
+    ],
+  );
+
   @override
   void onInit() {
     super.onInit();
     initializeVideoPlayer();
+    if (subtitlePath != null) {
+      loadSubtitles();
+    }
     _hideStatusBar();
   }
 
@@ -89,6 +118,13 @@ class PlayScreenController extends GetxController {
       videoController.setLooping(true);
     }).catchError((error) {
       print("Error initializing video player: $error");
+      Get.snackbar(
+        'Error',
+        'Failed to initialize video player',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     });
 
     videoController.addListener(_videoListener);
@@ -97,6 +133,7 @@ class PlayScreenController extends GetxController {
   void _videoListener() {
     if (videoController.value.position != currentPosition) {
       currentPosition = videoController.value.position;
+      _checkSubtitle();
       update([progressId]);
     }
 
@@ -104,6 +141,282 @@ class PlayScreenController extends GetxController {
       isPlaying = videoController.value.isPlaying;
       update([playPauseId]);
     }
+  }
+
+  // Subtitle Methods
+  Future<void> loadSubtitles() async {
+    if (subtitlePath == null) return;
+    
+    try {
+      final file = File(subtitlePath!);
+      if (!file.existsSync()) return;
+
+      final content = await file.readAsString();
+      subtitles = await parseSubtitles(content);
+      hasSubtitle = subtitles.isNotEmpty;
+      subtitlesEnabled = hasSubtitle;
+      update([subtitleId, initId]);
+    } catch (e) {
+      print('Error loading subtitles: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to load subtitles',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<void> pickSubtitleFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['srt', 'vtt', 'ass'],
+        allowMultiple: false,
+      );
+
+      if (result != null) {
+        subtitlePath = result.files.single.path!;
+        hasSubtitle = true;
+        subtitles.clear();
+        await loadSubtitles();
+        subtitlesEnabled = true;
+        update([subtitleId, controlsId]);
+      }
+    } catch (e) {
+      print('Error picking subtitle: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to load subtitle file',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  Future<List<Subtitle>> parseSubtitles(String content) async {
+    final List<Subtitle> subs = [];
+    final lines = content.split('\n');
+    int i = 0;
+
+    while (i < lines.length) {
+      if (lines[i].trim().isEmpty) {
+        i++;
+        continue;
+      }
+
+      // Skip index number
+      if (RegExp(r'^\d+$').hasMatch(lines[i].trim())) {
+        i++;
+      }
+
+      // Parse timestamp
+      final timestamp = lines[i].trim();
+      final times = timestamp.split(' --> ');
+      if (times.length != 2) {
+        i++;
+        continue;
+      }
+
+      final start = _parseTimestamp(times[0]);
+      final end = _parseTimestamp(times[1]);
+
+      // Parse text
+      i++;
+      String text = '';
+      while (i < lines.length && lines[i].trim().isNotEmpty) {
+        text += (text.isEmpty ? '' : '\n') + lines[i].trim();
+        i++;
+      }
+
+      subs.add(Subtitle(
+        start: start,
+        end: end,
+        text: text,
+      ));
+    }
+
+    return subs;
+  }
+
+  Duration _parseTimestamp(String timestamp) {
+    final parts = timestamp.split(':');
+    final secondsParts = parts[2].split(',');
+    
+    return Duration(
+      hours: int.parse(parts[0]),
+      minutes: int.parse(parts[1]),
+      seconds: int.parse(secondsParts[0]),
+      milliseconds: int.parse(secondsParts[1]),
+    );
+  }
+
+  void _checkSubtitle() {
+    if (!subtitlesEnabled || subtitles.isEmpty) return;
+
+    final position = currentPosition + Duration(milliseconds: (subtitleDelay * 1000).round());
+    currentSubtitle = subtitles.firstWhere(
+      (subtitle) => position >= subtitle.start && position <= subtitle.end,
+      orElse: () => Subtitle(start: Duration.zero, end: Duration.zero, text: ''),
+    );
+    update([subtitleId]);
+  }
+
+  void showSubtitleOptions() {
+    Get.bottomSheet(
+      SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(Get.context!).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Subtitle Options',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.closed_caption),
+                title: const Text('Enable Subtitles'),
+                trailing: Switch(
+                  value: subtitlesEnabled,
+                  onChanged: (value) {
+                    subtitlesEnabled = value;
+                    update([subtitleId]);
+                    Get.back();
+                  },
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_upload),
+                title: const Text('Load Subtitle File'),
+                onTap: () {
+                  Get.back();
+                  pickSubtitleFile();
+                },
+              ),
+              if (hasSubtitle)
+                ListTile(
+                  leading: const Icon(Icons.delete),
+                  title: const Text('Remove Subtitle'),
+                  onTap: () {
+                    subtitlePath = null;
+                    hasSubtitle = false;
+                    subtitles.clear();
+                    subtitlesEnabled = false;
+                    update([subtitleId]);
+                    Get.back();
+                  },
+                ),
+              if (hasSubtitle)
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: const Text('Subtitle Settings'),
+                  onTap: () {
+                    Get.back();
+                    showSubtitleSettings();
+                  },
+                ),
+              SizedBox(height: MediaQuery.of(Get.context!).viewInsets.bottom),
+            ],
+          ),
+        ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  void showSubtitleSettings() {
+    double fontSize = subtitleStyle.fontSize ?? 16;
+    double delay = subtitleDelay;
+
+    Get.bottomSheet(
+      StatefulBuilder(
+        builder: (context, setState) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Subtitle Settings',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Text('Font Size: '),
+                    Expanded(
+                      child: Slider(
+                        value: fontSize,
+                        min: 12,
+                        max: 30,
+                        divisions: 18,
+                        label: fontSize.round().toString(),
+                        onChanged: (value) {
+                          setState(() => fontSize = value);
+                          updateSubtitleStyle(fontSize: value);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Text('Delay: '),
+                    Expanded(
+                      child: Slider(
+                        value: delay,
+                        min: -5,
+                        max: 5,
+                        divisions: 100,
+                        label: '${delay.toStringAsFixed(1)}s',
+                        onChanged: (value) {
+                          setState(() => delay = value);
+                          subtitleDelay = value;
+                          _checkSubtitle();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  void updateSubtitleStyle({
+    double? fontSize,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    subtitleStyle = subtitleStyle.copyWith(
+      fontSize: fontSize,
+      color: color,
+      backgroundColor: backgroundColor,
+    );
+    update([subtitleId]);
   }
 
   // Playback Controls
@@ -127,12 +440,10 @@ class PlayScreenController extends GetxController {
 
   void seekTo(Duration position) {
     if (isLocked) return;
-    videoController.seekTo(position).then((_){
-      Future.delayed(const Duration(milliseconds: 1000),(){
-      isPlaying = videoController.value.isPlaying ;
-      }
-      );
-      
+    videoController.seekTo(position).then((_) {
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        isPlaying = videoController.value.isPlaying;
+      });
     });
     update([gestureId]);
   }
@@ -313,6 +624,7 @@ class PlayScreenController extends GetxController {
     _volumeIndicatorTimer?.cancel();
     _brightnessIndicatorTimer?.cancel();
     _seekIndicatorTimer?.cancel();
+    _subtitleTimer?.cancel();
     videoController.removeListener(_videoListener);
     videoController.dispose();
     
