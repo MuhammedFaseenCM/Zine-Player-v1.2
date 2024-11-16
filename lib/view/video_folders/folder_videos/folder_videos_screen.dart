@@ -23,18 +23,23 @@ class FolderVideosScreen extends GetView<VideoController> {
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
       ),
-      body: ListView.builder(
-        itemCount: folder.videos.length,
-        itemBuilder: (context, index) {
-          final video = folder.videos[index];
-          return VideoListItem(
-            video: video,
-            onFavoriteToggle: controller.toggleFavorite,
-            onAddToPlaylist: (video) =>
-                Get.dialog(AddToPlaylistDialog(video: video)),
-            onTap: controller.playVideo,
+      body: GetBuilder<VideoController>(
+        id: VideoController.videosID,
+        builder: (context) {
+          return ListView.builder(
+            itemCount: folder.videos.length,
+            itemBuilder: (context, index) {
+              final video = folder.videos[index];
+              return VideoListItem(
+                video: video,
+                onFavoriteToggle: controller.toggleFavorite,
+                onAddToPlaylist: (video) =>
+                    Get.dialog(AddToPlaylistDialog(video: video)),
+                onTap: controller.playVideo,
+              );
+            },
           );
-        },
+        }
       ),
     );
   }
