@@ -40,4 +40,7 @@ class AppStrings {
   static const loadingLottie = 'assets/animations/video_loading.json';
   static const emptyLottie = 'assets/animations/video_empty.json';
   static const favEmptyLottie = 'assets/animations/fav_empty.json';
+
+  static const String searchVideos = 'Search videos...';
+  static const String noSearchResults = 'No videos found matching your search';
 }

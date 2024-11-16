@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:lottie/lottie.dart';
 import 'package:zine_player/components/add_to_playlist_dialog.dart';
 import 'package:zine_player/components/video_list_item.dart';
+import 'package:zine_player/components/video_search_bar.dart';
 import 'package:zine_player/utils/strings.dart';
 import 'package:zine_player/view/settings/settigs_drawer.dart';
 import 'package:zine_player/view/video_list/video_list_controller.dart';
@@ -48,32 +49,45 @@ class VideoListScreen extends GetView<VideoController> {
                 );
               }
 
-              return GetBuilder<VideoController>(
-                id: VideoController.videosID,
-                builder: (controller) {
-                  if (controller.videos.isEmpty) {
-                    return Center(
-                      child: Text(
-                        AppStrings.noVideosFound,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    );
-                  }
+              return Column(
+                children: [
+                  const VideoSearchBar(),
+                  Expanded(
+                    child: GetBuilder<VideoController>(
+                      id: VideoController.videosID,
+                      builder: (controller) {
+                        if (controller.videos.isEmpty) {
+                          return Center(
+                            child: Text(
+                              controller.searchQuery.isEmpty
+                                  ? AppStrings.noVideosFound
+                                  : AppStrings.noSearchResults,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          );
+                        }
 
-                  return ListView.builder(
-                    itemCount: controller.videos.length,
-                    itemBuilder: (context, index) {
-                      final video = controller.videos[index];
-                      return VideoListItem(
-                        video: video,
-                        onFavoriteToggle: controller.toggleFavorite,
-                        onAddToPlaylist: (video) =>
-                            Get.dialog(AddToPlaylistDialog(video: video)),
-                        onTap: controller.playVideo,
-                      );
-                    },
-                  );
-                },
+                        return RefreshIndicator(
+                          onRefresh: controller.loadVideos,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: controller.filteredVideos.length,
+                            itemBuilder: (context, index) {
+                              final video = controller.filteredVideos[index];
+                              return VideoListItem(
+                                video: video,
+                                onFavoriteToggle: controller.toggleFavorite,
+                                onAddToPlaylist: (video) =>
+                                    Get.dialog(AddToPlaylistDialog(video: video)),
+                                onTap: controller.playVideo,
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               );
             },
           );
